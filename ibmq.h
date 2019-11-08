@@ -210,7 +210,7 @@ namespace ibmq {
                 for(auto it = list.begin(); it != pend; ++it){
                     newlist.push_back(*it);
                 }
-                switch(list.size()){
+                switch(newlist.size()){
                     case 0:
                         U = ITensor(s[cursor.first]);
                         break;

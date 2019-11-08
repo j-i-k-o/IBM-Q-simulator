@@ -20,43 +20,73 @@ int main(int argc, char const* argv[]){
     IBMQPeps circuit(init_param);
 
 
-    //Below is the demonstration of genearating bell state
+    //Below is the demonstration of genearating GHZ state
 
     //the default cursor is located on qubit number 1 and 2
-    //shift the cursor to qubit number 5
-    circuit.shift_to(3);
-    circuit.shift_to(4);
-    circuit.shift_to(5);
+    //shift the cursor to qubit number (7,12)
+    circuit.shift_to(3, {"Cutoff", 1E-5});
+    circuit.shift_to(4, {"Cutoff", 1E-5});
+    circuit.shift_to(5, {"Cutoff", 1E-5});
+    circuit.shift_to(7, {"Cutoff", 1E-5});
+    circuit.shift_to(12, {"Cutoff", 1E-5});
 
-    //apply Hadamard to gate 4
-    circuit.apply(H(circuit.site(4))*Id(circuit.site(5)));
-    //apply CNOT to gate 4 and 5
-    circuit.apply(CNOT(circuit.site(4), circuit.site(5)));
-    //the result should be bell state (1/sqrt(2))(|00> + |11>)
+    //apply Hadamard and X to gate (7,12)
+    circuit.apply(H(circuit.site(7))*X(circuit.site(12)));
+    //shift the cursor to qubit number (11,12)
+    circuit.shift_to(11, {"Cutoff", 1E-5});
+    //apply Hadamard to gate 11
+    circuit.apply(H(circuit.site(11))*Id(circuit.site(12)));
+    //apply CNOT to gate (11, 12)
+    circuit.apply(CNOT(circuit.site(11), circuit.site(12)));
+    //shift the cursor to qubit number (7,12)
+    circuit.shift_to(7, {"Cutoff", 1E-5});
+    //apply CNOT to gate (7, 12)
+    circuit.apply(CNOT(circuit.site(7), circuit.site(12)));
+    //apply Hadamard to gate (7,12)
+    circuit.apply(H(circuit.site(7))*H(circuit.site(12)));
+    //shift the cursor to qubit number (11,12)
+    circuit.shift_to(11, {"Cutoff", 1E-5});
+    //apply Hadamard to gate 11
+    circuit.apply(H(circuit.site(11))*Id(circuit.site(12)));
+    //the result should be bell state (1/sqrt(2))(|000> + |111>)
     
+    //shift the cursor to qubit number (7,12)
+    circuit.shift_to(7, {"Cutoff", 1E-5});
+    circuit.shift_to(5, {"Cutoff", 1E-5});
+    circuit.shift_to(4, {"Cutoff", 1E-5});
+    circuit.shift_to(3, {"Cutoff", 1E-5});
+    circuit.shift_to(2, {"Cutoff", 1E-5});
+    circuit.shift_to(1, {"Cutoff", 1E-5});
 
 
-    //to show that there is bell state, calc the overlap between |0...00....0> and |0...11....0> where 00 and 11 are located on the qubit number 4 and 5 respectively.
+    //to show GHZ state is generated, calc the overlap between |0...000....0> and |0...111....0> where 000 and 111 are located on the qubit (7,11,12).
     
-    //|0...00....0>
-    IBMQPeps circuit00(init_param, circuit.site());
+    //|0...000....0>
+    IBMQPeps circuit000(init_param, circuit.site());
 
-    //|0...11....0>
-    IBMQPeps circuit11(init_param, circuit.site());
-    //shift the cursor to qubit number 5
-    circuit11.shift_to(3);
-    circuit11.shift_to(4);
-    circuit11.shift_to(5);
-    //flip the qubit number 4 and 5
-    circuit11.apply(X(circuit.site(4))*X(circuit.site(5)));
+    //|0...111....0>
+    IBMQPeps circuit111(init_param, circuit.site());
+    //shift the cursor to qubit number (7,12)
+    circuit111.shift_to(3, {"Cutoff", 1E-5});
+    circuit111.shift_to(4, {"Cutoff", 1E-5});
+    circuit111.shift_to(5, {"Cutoff", 1E-5});
+    circuit111.shift_to(7, {"Cutoff", 1E-5});
+    circuit111.shift_to(12, {"Cutoff", 1E-5});
+    //flip the qubit number (7,12)
+    circuit111.apply(X(circuit.site(7))*X(circuit.site(12)));
+    //shift the cursor to qubit number (11,12)
+    circuit111.shift_to(11, {"Cutoff", 1E-5});
+    //flip the qubit number 11
+    circuit111.apply(X(circuit.site(11))*Id(circuit.site(12)));
     
     myvector<ITensor> op(IBMQPeps::NUM_BITS);
     for(auto i : range1(IBMQPeps::NUM_BITS)){
         op[i] = Id(circuit.site(i));
     }
 
-    Print(overlap(circuit, op, circuit00)); //result should be 1/sqrt(2)
-    Print(overlap(circuit, op, circuit11)); //result should be 1/sqrt(2)
+    Print(overlap(circuit, op, circuit000)); //result should be -1/sqrt(2)
+    Print(overlap(circuit, op, circuit111)); //result should be 1/sqrt(2)
+    Print(overlap(circuit, op, circuit)); //result should be 1
 
 	return 0;
 }
