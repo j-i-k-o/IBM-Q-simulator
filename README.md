@@ -1,3 +1,14 @@
+#IBM Q simulator 
+
+An IBM Q simulator of 53-qubit quantum processor (rochester) by using tensor contraction (tensor network)
+
+##Installation
+
+Install [ITensor](https://itensor.org/) and change `LIBRARY_DIR` in Makefile to your ITensor directory.
+
+##Example
+
+```c++
 #include "itensor/all.h"
 #include "itensor/mps/siteset.h"
 #include <stdio.h>
@@ -60,3 +71,6 @@ int main(int argc, char const* argv[]){
 
 	return 0;
 }
+```
+
+

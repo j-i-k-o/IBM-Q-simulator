@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <functional>
 #include <iostream>
+#include <array>
 
 namespace ibmq {
 
@@ -15,8 +16,6 @@ namespace ibmq {
     /******
      * 1-indexed vector
      ******/
-
-
 
     template<typename _Tp, typename _Alloc = std::allocator<_Tp>>
         class myvector : public std::vector<_Tp, _Alloc>
@@ -54,6 +53,9 @@ namespace ibmq {
         }
     };
 
+    /**
+     * @brief IBM Q circuit
+     */
     class IBMQPeps{
         private:
             myvector<Index> a;   //Links
@@ -66,8 +68,6 @@ namespace ibmq {
             //[(link_ind, node_ind), ...]
             myvector<myvector<std::pair<size_t, size_t>>> link_node;
 
-            constexpr static size_t NUM_BITS = 53;
-
             void generate_link(size_t ind1, size_t ind2){
                 //generate link between ind1 and ind2
                 a.push_back(Index("LinkInd", 1, Link));
@@ -78,7 +78,9 @@ namespace ibmq {
             }
 
         public:
-            IBMQPeps() : link_node(NUM_BITS){
+            constexpr static size_t NUM_BITS = 53;
+
+            IBMQPeps(const std::array<std::pair<double, double>, NUM_BITS>& init_state, const myvector<Index> site_ind = myvector<Index>()) : s(site_ind), link_node(NUM_BITS){
                 //generate tensors
                 generate_link(1,2);
                 generate_link(2,3);
@@ -155,8 +157,10 @@ namespace ibmq {
                 generate_link(51,53);
 
                 //sites
-                for(auto i : range1(NUM_BITS)){
-                    s.push_back(Index("SiteInd", 2, Site));
+                if(s.size() == 0){
+                    for(auto i : range1(NUM_BITS)){
+                        s.push_back(Index("SiteInd", 2, Site));
+                    }
                 }
 
                 //tensors
@@ -164,18 +168,18 @@ namespace ibmq {
                     switch(link_node[i].size()){
                         case 1:
                             M.push_back(ITensor(s[i], a[link_node[i][1].first]));
-                            M[i].set(a[link_node[i][1].first](1), s[i](1), 1);
-                            M[i].set(a[link_node[i][1].first](1), s[i](2), 0);
+                            M[i].set(a[link_node[i][1].first](1), s[i](1), init_state[i-1].first);
+                            M[i].set(a[link_node[i][1].first](1), s[i](2), init_state[i-1].second);
                             break;
                         case 2:
                             M.push_back(ITensor(s[i], a[link_node[i][1].first], a[link_node[i][2].first]));
-                            M[i].set(a[link_node[i][1].first](1), a[link_node[i][2].first](1), s[i](1), 1);
-                            M[i].set(a[link_node[i][1].first](1), a[link_node[i][2].first](1), s[i](2), 0);
+                            M[i].set(a[link_node[i][1].first](1), a[link_node[i][2].first](1), s[i](1), init_state[i-1].first);
+                            M[i].set(a[link_node[i][1].first](1), a[link_node[i][2].first](1), s[i](2), init_state[i-1].second);
                             break;
                         case 3:
                             M.push_back(ITensor(s[i], a[link_node[i][1].first], a[link_node[i][2].first], a[link_node[i][3].first]));
-                            M[i].set(a[link_node[i][1].first](1), a[link_node[i][2].first](1), a[link_node[i][3].first](1), s[i](1), 1);
-                            M[i].set(a[link_node[i][1].first](1), a[link_node[i][2].first](1), a[link_node[i][3].first](1), s[i](2), 0);
+                            M[i].set(a[link_node[i][1].first](1), a[link_node[i][2].first](1), a[link_node[i][3].first](1), s[i](1), init_state[i-1].first);
+                            M[i].set(a[link_node[i][1].first](1), a[link_node[i][2].first](1), a[link_node[i][3].first](1), s[i](2), init_state[i-1].second);
                             break;
                         default:
                             assert(false);
@@ -250,7 +254,6 @@ namespace ibmq {
                 }
 
                 Spectrum spec;
-                std::cout << flag << std::endl;
 
                 if(flag == 1){
                     ITensor U,S,V;
@@ -270,7 +273,7 @@ namespace ibmq {
                     for(auto it = list.begin(); it != pend; ++it){
                         newlist.push_back(*it);
                     }
-                    switch(list.size()){
+                    switch(newlist.size()){
                         case 0:
                             V = ITensor(s[cursor.second]);
                             break;
@@ -313,7 +316,7 @@ namespace ibmq {
                     for(auto it = list.begin(); it != pend; ++it){
                         newlist.push_back(*it);
                     }
-                    switch(list.size()){
+                    switch(newlist.size()){
                         case 0:
                             U = ITensor(s[cursor.first]);
                             break;
@@ -345,6 +348,61 @@ namespace ibmq {
 
             }
 
+            void apply(const ITensor& Op){
+				assert(Op.inds().size() == 4);
+				for(auto&& elem : Op.inds()){
+					//check if 
+					assert(elem == s[cursor.first] || elem == s[cursor.second] || elem == prime(s[cursor.first]) || elem == prime(s[cursor.second]));
+				}
+				this->Psi = Op * prime(Psi,s[cursor.first],s[cursor.second]);
+            }
+
+            inline void normalize(){
+                Psi /= norm(Psi);
+            }
+
+            void primeAll(){
+                for(auto& elem : this->s){
+                    elem = prime(elem);
+                }
+
+                for(auto& elem : this->a){
+                    elem = prime(elem);
+                }
+
+                for(auto& elem : this->M){
+                    elem = prime(elem);
+                }
+
+                Psi = prime(Psi);
+            }
+
+            inline const ITensor& Mref(size_t i) const{
+				assert(1<=i && i<=NUM_BITS);
+                return this->M[i];
+            }
+
+            inline const myvector<ITensor>& Mref() const{
+                return this->M;
+            }
+
+            inline const ITensor& Psiref() const{
+                return this->Psi;
+            }
+
+            inline const Index& site(size_t i) const{
+				assert(1<=i && i<=NUM_BITS);
+                return this->s[i];
+            }
+
+            inline const myvector<Index>& site() const{
+                return this->s;
+            }
+
+            inline const std::pair<size_t, size_t>& pos() const{
+                return this->cursor;
+            }
+
             void PrintMat(){
                 for(auto&& elem : M){
                     PrintData(elem);
@@ -362,28 +420,108 @@ namespace ibmq {
 
     };
 
+	//ITensor Hamiltonian
+	inline const ITensor Id(const Index& s){
+		ITensor ret(s, prime(s));
+		ret.set(s(1), prime(s)(1), 1);
+		ret.set(s(2), prime(s)(2), 1);
+		return ret;
+	}
+
+    //pauli x
+	inline const ITensor X(const Index& s){
+		ITensor ret(s, prime(s));
+		ret.set(s(1), prime(s)(2), 1);
+		ret.set(s(2), prime(s)(1), 1);
+		return ret;
+	}
+
+    //pauli y
+	inline const ITensor Y(const Index& s){
+		ITensor ret(s, prime(s));
+		ret.set(s(1), prime(s)(2), -1_i);
+		ret.set(s(2), prime(s)(1), 1_i);
+		return ret;
+	}
+
+    //pauli z
+	inline const ITensor Z(const Index& s){
+		ITensor ret(s, prime(s));
+		ret.set(s(1), prime(s)(1), 1);
+		ret.set(s(2), prime(s)(2), -1);
+		return ret;
+	}
+
+    //|0><0|
+	inline const ITensor proj_0(const Index& s){
+		ITensor ret(s, prime(s));
+		ret.set(s(1), prime(s)(1), 1);
+		return ret;
+	}
+
+    //|1><1|
+	inline const ITensor proj_1(const Index& s){
+		ITensor ret(s, prime(s));
+		ret.set(s(2), prime(s)(2), 1);
+		return ret;
+	}
+
+    //|1><0|
+	inline const ITensor proj_0_to_1(const Index& s){
+		ITensor ret(s, prime(s));
+		ret.set(s(2), prime(s)(1), 1);
+		return ret;
+	}
+
+    //|0><1|
+	inline const ITensor proj_1_to_0(const Index& s){
+		ITensor ret(s, prime(s));
+		ret.set(s(1), prime(s)(2), 1);
+		return ret;
+	}
+
+    //Hadamard
+	inline const ITensor H(const Index& s){
+		return (1.0/sqrt(2.0))*(proj_0(s) + proj_0_to_1(s)) + (1.0/sqrt(2.0))*(proj_1(s) - proj_1_to_0(s));
+	}
+
+    //CNOT
+	inline const ITensor CNOT(const Index& s1, const Index& s2){
+		return proj_0(s1)*Id(s2) + proj_1(s1)*X(s2);
+	}
+
+    //Control-Y
+	inline const ITensor CY(const Index& s1, const Index& s2){
+		return proj_0(s1)*Id(s2) + proj_1(s1)*Y(s2);
+	}
+
+    //Control-Z
+	inline const ITensor CZ(const Index& s1, const Index& s2){
+		return proj_0(s1)*Id(s2) + proj_1(s1)*Z(s2);
+	}
+
+
+
+
 	Cplx overlap(const IBMQPeps& t_peps1, const myvector<ITensor>& op, const IBMQPeps& t_peps2, const Args& args = Args::global()){
-		assert(op.size() == t_peps1.size());
-		assert(op.size() == t_peps2.size());
+		assert(op.size() == IBMQPeps::NUM_BITS);
 
 		//create copy
-		myMPS peps1 = t_peps1;
-		myMPS peps2 = t_peps2;
+		IBMQPeps peps1 = t_peps1;
+		IBMQPeps peps2 = t_peps2;
 
 		peps1.decomposePsi(args);
 		peps2.decomposePsi(args);
 
-		//peps2.primeAll();
+		peps2.primeAll();
 
-		//ITensor ret_t = dag(peps1.Mref_c(1))*op[1]*peps2.Mref_c(1);
-		//for(size_t i=2; i<= peps1.size(); i++){
-		//	//reduction
-		//	ret_t = dag(peps1.Mref_c(i))*op[i]*ret_t*peps2.Mref_c(i);
-		//}
-		//
-		//return ret_t.cplx();
-        
-        return 0;
+		ITensor ret_t = dag(peps1.Mref(1))*op[1]*peps2.Mref(1);
+		for(size_t i=2; i<= IBMQPeps::NUM_BITS; i++){
+			//reduction
+			ret_t = dag(peps1.Mref(i))*op[i]*ret_t*peps2.Mref(i);
+		}
+		
+		return ret_t.cplx();
 	}
 
 
