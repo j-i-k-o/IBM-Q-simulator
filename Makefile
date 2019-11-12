@@ -14,7 +14,7 @@ APP=mps_mylib
 
 # 4. Add any headers your program depends on here. The make program
 #    will auto-detect if these headers have changed and recompile your app.
-HEADERS=t_dmrg.h
+HEADERS=
 
 # 5. For any additional .cc (source) files making up your project,
 #    add their full filenames here.
